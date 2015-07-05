@@ -36,7 +36,9 @@
 #include <typeinfo>
 #include <cstring>
 #include <algorithm>
+#if !defined(_MSC_VER)
 #include <cxxabi.h>
+#endif
 #include <cstdlib>
 
 namespace cmdline{
@@ -104,17 +106,30 @@ Target lexical_cast(const Source &arg)
 
 static inline std::string demangle(const std::string &name)
 {
+#if !defined(_MSC_VER)
+  return name;
+#else
   int status=0;
   char *p=abi::__cxa_demangle(name.c_str(), 0, 0, &status);
   std::string ret(p);
   free(p);
   return ret;
+#endif
 }
 
 template <class T>
 std::string readable_typename()
 {
   return demangle(typeid(T).name());
+}
+
+template <class T>
+std::string default_value(const std::vector<T>& def)
+{
+  std::string res;
+  for(auto &i: def)
+   res+=detail::lexical_cast<std::string>(i)+" ";
+  return res;
 }
 
 template <class T>
@@ -127,6 +142,12 @@ template <>
 inline std::string readable_typename<std::string>()
 {
   return "string";
+}
+
+template <>
+inline std::string readable_typename<std::vector<std::string> >()
+{
+  return "vector<string>";
 }
 
 } // detail
@@ -760,7 +781,7 @@ private:
     std::string full_description(const std::string &desc){
       return
         desc+" ("+detail::readable_typename<T>()+
-        (need?"":" [="+detail::default_value<T>(def)+"]")
+        (need?"":" [="+detail::default_value(def)+"]")
         +")";
     }
 
